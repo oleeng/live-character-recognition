@@ -1,7 +1,7 @@
 from flask import Flask, request
 import json
 import numpy as np
-import keras
+import tensorflow as tf
 
 def getReadableLabel(label):
     if label<10:
@@ -14,7 +14,7 @@ def getReadableLabel(label):
         # lowercase
         return chr(label+61)
 
-model = keras.models.load_model('saved_model/my_model')
+model = tf.keras.models.load_model('saved_model/my_model')
 
 app = Flask(__name__)
 
