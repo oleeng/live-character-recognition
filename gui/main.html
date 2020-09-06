@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title></title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@100&display=swap" rel="stylesheet">
+    <script type="text/javascript">
+    var canvas = null
+    var ctx = null
+    var flag = false
+    var currX = 0
+    var currY = 0
+    var dot_flag = false
+
+    var color = "black"
+    var size = 20
+
+    function init() {
+      canvas = document.getElementById('canvas')
+      ctx = canvas.getContext("2d")
+      width = canvas.width
+      height = canvas.height
+
+      canvas.addEventListener("mousemove", function (e) {
+        findxy('move', e)
+      }, false)
+
+      canvas.addEventListener("mousedown", function (e) {
+        findxy('down', e)
+      }, false)
+
+      canvas.addEventListener("mouseup", function (e) {
+        findxy('up', e)
+      }, false)
+
+      canvas.addEventListener("mouseout", function (e) {
+        findxy('out', e)
+      }, false)
+    }
+
+    function draw() {
+      ctx.lineTo(currX, currY)
+      ctx.strokeStyle = color
+      ctx.lineWidth = size
+      ctx.stroke()
+    }
+
+    function drawStart(){
+      ctx.beginPath();
+      ctx.moveTo(currX, currY);
+    }
+
+    function drawEnd() {
+      ctx.closePath();
+    }
+
+    function erase() {
+      ctx.clearRect(0, 0, width, height);
+    }
+
+    window.onload = function() {
+      init()
+    }
+
+    function findxy(res, e) {
+      if (res == 'down') {
+        currX = e.clientX - canvas.offsetLeft;
+        currY = e.clientY - canvas.offsetTop;
+
+        flag = true;
+
+        drawStart()
+      }
+      if (res == 'up' || res == "out") {
+        if(flag){
+          data = ctx.getImageData(0, 0, width, height).data;
+          smallData = []
+
+          for(let h = 0; h < 28; h++){
+            for(let w = 0; w < 28; w++){
+              result = 0
+              for(let i = 0; i < Math.floor(height/28); i++){
+                for(let j = 0; j < Math.floor(width/28); j++){
+                  pixelData = data[width*4*(h*Math.floor(height/28)+i)+4*(w*Math.floor(width/28)+j)]
+                  opacityData = data[width*4*(h*Math.floor(height/28)+i)+4*(w*Math.floor(width/28)+j)+3]
+                  if(opacityData == 255){
+                    result += pixelData
+                  }else{
+                    result += 255
+                  }
+                }
+              }
+              smallData.push(result/(Math.floor(height/28) * Math.floor(width/28)))
+            }
+          }
+
+          //let url = "http://localhost:8080/recognize"
+          let url = "/recognize"
+
+          fetch(url, {
+            method: 'post',
+            body: JSON.stringify(smallData)
+          }).then(data => {
+            return data.json()
+          }).then(res => {
+
+            document.getElementById('result').classList.remove("hide");
+            console.log(res);
+            document.getElementById('bestGuess').innerHTML = res[0][0]
+
+            for(let i= 0; i < 5; i++){
+              let el = document.getElementById("el"+(i+1))
+              el.firstElementChild.innerHTML = res[i][0]
+              el.lastElementChild.innerHTML = parseFloat(res[i][1]).toFixed(2)
+            }
+          })
+        }
+        flag = false;
+      }
+      if (res == 'move') {
+        if (flag) {
+          currX = e.clientX - canvas.offsetLeft;
+          currY = e.clientY - canvas.offsetTop;
+          draw();
+        }
+      }
+    }
+    </script>
+
+    <style media="screen">
+    *{
+      padding: 0;
+      margin: 0;
+      font-family: 'Roboto', sans-serif;
+      color: whitesmoke;
+      box-sizing: border-box;
+    }
+
+    body{
+      background: #ec008c;  /* fallback for old browsers */
+      background: -webkit-linear-gradient(to right, #fc6767, #ec008c);  /* Chrome 10-25, Safari 5.1-6 */
+      background: linear-gradient(to right, #fc6767, #ec008c); /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+    }
+
+    #main{
+      padding: 50px;
+    }
+
+    .h1{
+      font-size: 3em;
+    }
+
+    .h2{
+      font-size: 2em;
+    }
+
+    button{
+      display: block;
+      background: transparent;
+      border: 1px solid whitesmoke;
+      border-radius: 10px;
+      padding: 10px;
+      width: 100%;
+      outline: none;
+      font-size: 1.3em;
+    }
+
+    button:hover{
+      cursor: pointer;
+    }
+
+    .convasContainer{
+      display: inline-block;
+      box-sizing: content-box;
+      width: 500px;
+      padding: 50px;
+      padding-bottom: 0;
+    }
+
+    #result{
+      display: inline-block;
+    }
+
+    #bestGuess{
+      font-size: 1.5em;
+    }
+
+    #result.hide{
+      display: none;
+    }
+
+    #canvas{
+      margin: auto;
+      background: white;
+      margin-bottom: 30px;
+      cursor: crosshair;
+    }
+    </style>
+  </head>
+  <body>
+    <div id="main">
+      <p class="h1">Dynamic character recognition</p>
+      <div class="convasContainer">
+        <canvas id="canvas" width="500px" height="500px"></canvas>
+        <button onclick="erase()">clear canvas</button>
+      </div>
+      <div id="result" class="hide">
+        <p class="h2">Results:</p>
+        <p>The best Guess is: <span id="bestGuess">F</span></p>
+        <p>Top 5 predictions:</p>
+        <p id="el1"><span class="val"></span>: <span class="percent"></span>%</p>
+        <p id="el2"><span class="val"></span>: <span class="percent"></span>%</p>
+        <p id="el3"><span class="val"></span>: <span class="percent"></span>%</p>
+        <p id="el4"><span class="val"></span>: <span class="percent"></span>%</p>
+        <p id="el5"><span class="val"></span>: <span class="percent"></span>%</p>
+      </div>
+    </div>
+  </body>
+</html>
